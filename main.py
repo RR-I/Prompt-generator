@@ -26,67 +26,87 @@ Puoi personalizzare settore, servizi, target, area geografica e tono comunicativ
 # ==========================================================
 if 'api_key' not in st.session_state:
     st.session_state.api_key = ""
+if 'key_loaded_from_storage' not in st.session_state:
+    st.session_state.key_loaded_from_storage = False
 
 # ==========================================================
-# 🔐 COMPONENTE CUSTOM PER LOCALSTORAGE
+# 🔐 COMPONENTE PER CARICARE DA LOCALSTORAGE
 # ==========================================================
 
-def local_storage_manager():
-    """Componente HTML/JS per gestire localStorage"""
+def load_from_localstorage():
+    """Carica la chiave dal localStorage solo una volta"""
     
     html_code = """
+    <script>
+        const savedKey = localStorage.getItem('openai_api_key');
+        if (savedKey) {
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue',
+                value: savedKey
+            }, '*');
+        }
+    </script>
+    """
+    
+    return components.html(html_code, height=0)
+
+# ==========================================================
+# 🔐 COMPONENTE PER SALVARE/RIMUOVERE
+# ==========================================================
+
+def api_key_input_component():
+    """Componente per inserire e gestire la chiave API"""
+    
+    current_key = st.session_state.api_key
+    
+    html_code = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            * {
+            * {{
                 box-sizing: border-box;
                 margin: 0;
                 padding: 0;
-            }
+            }}
             
-            body {
+            body {{
                 font-family: "Source Sans Pro", sans-serif;
-                padding: 1rem;
-            }
+                padding: 0.5rem;
+            }}
             
-            .container {
-                background: white;
-                border-radius: 8px;
-                padding: 1.5rem;
-            }
-            
-            .input-group {
+            .input-group {{
                 margin-bottom: 1rem;
-            }
+            }}
             
-            label {
+            label {{
                 display: block;
                 margin-bottom: 0.5rem;
                 font-weight: 500;
                 color: #262730;
-            }
+                font-size: 14px;
+            }}
             
-            input[type="password"] {
+            input[type="password"] {{
                 width: 100%;
                 padding: 0.5rem;
                 border: 1px solid #d3d3d3;
                 border-radius: 4px;
                 font-size: 14px;
-            }
+            }}
             
-            input[type="password"]:focus {
+            input[type="password"]:focus {{
                 outline: none;
                 border-color: #ff4b4b;
-            }
+            }}
             
-            .button-group {
+            .button-group {{
                 display: flex;
                 gap: 0.5rem;
                 margin-top: 1rem;
-            }
+            }}
             
-            button {
+            button {{
                 flex: 1;
                 padding: 0.5rem 1rem;
                 border: none;
@@ -95,150 +115,135 @@ def local_storage_manager():
                 font-weight: 500;
                 cursor: pointer;
                 transition: all 0.2s;
-            }
+            }}
             
-            .btn-save {
+            .btn-save {{
                 background: #4CAF50;
                 color: white;
-            }
+            }}
             
-            .btn-save:hover {
+            .btn-save:hover {{
                 background: #45a049;
-            }
+            }}
             
-            .btn-remove {
+            .btn-remove {{
                 background: #f44336;
                 color: white;
-            }
+            }}
             
-            .btn-remove:hover {
+            .btn-remove:hover {{
                 background: #da190b;
-            }
+            }}
             
-            .status {
+            .status {{
                 margin-top: 1rem;
                 padding: 0.75rem;
                 border-radius: 4px;
                 font-size: 14px;
                 display: none;
-            }
+            }}
             
-            .status.success {
+            .status.success {{
                 background: #d4edda;
                 color: #155724;
                 border: 1px solid #c3e6cb;
-            }
+            }}
             
-            .status.error {
+            .status.error {{
                 background: #f8d7da;
                 color: #721c24;
                 border: 1px solid #f5c6cb;
-            }
+            }}
             
-            .status.info {
+            .status.info {{
                 background: #d1ecf1;
                 color: #0c5460;
                 border: 1px solid #bee5eb;
-            }
+            }}
         </style>
     </head>
     <body>
-        <div class="container">
-            <div class="input-group">
-                <label for="apiKeyInput">🔑 Chiave API OpenAI</label>
-                <input type="password" id="apiKeyInput" placeholder="sk-proj-...">
-            </div>
-            
-            <div class="button-group">
-                <button class="btn-save" onclick="saveKey()">💾 Salva nel browser</button>
-                <button class="btn-remove" onclick="removeKey()">🗑️ Rimuovi</button>
-            </div>
-            
-            <div id="status" class="status"></div>
+        <div class="input-group">
+            <label for="apiKeyInput">🔑 Chiave API OpenAI</label>
+            <input type="password" id="apiKeyInput" placeholder="sk-proj-..." value="{current_key}">
         </div>
         
+        <div class="button-group">
+            <button class="btn-save" onclick="saveKey()">💾 Salva nel browser</button>
+            <button class="btn-remove" onclick="removeKey()">🗑️ Rimuovi</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
         <script>
-            // Carica la chiave al caricamento della pagina
-            window.addEventListener('load', function() {
-                loadKey();
-            });
-            
-            function loadKey() {
-                try {
-                    const savedKey = localStorage.getItem('openai_api_key');
-                    if (savedKey) {
-                        document.getElementById('apiKeyInput').value = savedKey;
-                        sendToStreamlit(savedKey);
-                        showStatus('✅ Chiave caricata dal browser', 'success');
-                    } else {
-                        sendToStreamlit('');
-                    }
-                } catch (error) {
-                    console.error('Errore nel caricamento:', error);
-                    sendToStreamlit('');
-                }
-            }
-            
-            function saveKey() {
+            function saveKey() {{
                 const keyInput = document.getElementById('apiKeyInput');
                 const key = keyInput.value.trim();
                 
-                if (!key) {
+                if (!key) {{
                     showStatus('⚠️ Inserisci una chiave valida', 'error');
                     return;
-                }
+                }}
                 
-                if (!key.startsWith('sk-')) {
+                if (!key.startsWith('sk-')) {{
                     showStatus('⚠️ La chiave deve iniziare con "sk-"', 'error');
                     return;
-                }
+                }}
                 
-                try {
+                try {{
                     localStorage.setItem('openai_api_key', key);
-                    sendToStreamlit(key);
-                    showStatus('✅ Chiave salvata con successo nel browser!', 'success');
-                } catch (error) {
-                    showStatus('❌ Errore nel salvataggio: ' + error.message, 'error');
-                }
-            }
+                    sendToStreamlit('SAVE:' + key);
+                    showStatus('✅ Chiave salvata con successo!', 'success');
+                }} catch (error) {{
+                    showStatus('❌ Errore: ' + error.message, 'error');
+                }}
+            }}
             
-            function removeKey() {
-                try {
+            function removeKey() {{
+                try {{
                     localStorage.removeItem('openai_api_key');
                     document.getElementById('apiKeyInput').value = '';
-                    sendToStreamlit('REMOVED');
-                    showStatus('🗑️ Chiave rimossa dal browser', 'info');
-                } catch (error) {
-                    showStatus('❌ Errore nella rimozione: ' + error.message, 'error');
-                }
-            }
+                    sendToStreamlit('REMOVE');
+                    showStatus('🗑️ Chiave rimossa', 'info');
+                }} catch (error) {{
+                    showStatus('❌ Errore: ' + error.message, 'error');
+                }}
+            }}
             
-            function sendToStreamlit(value) {
-                window.parent.postMessage({
+            function sendToStreamlit(value) {{
+                window.parent.postMessage({{
                     type: 'streamlit:setComponentValue',
                     value: value
-                }, '*');
-            }
+                }}, '*');
+            }}
             
-            function showStatus(message, type) {
+            function showStatus(message, type) {{
                 const statusDiv = document.getElementById('status');
                 statusDiv.textContent = message;
                 statusDiv.className = 'status ' + type;
                 statusDiv.style.display = 'block';
                 
-                // Nascondi dopo 5 secondi
-                setTimeout(() => {
+                setTimeout(() => {{
                     statusDiv.style.display = 'none';
-                }, 5000);
-            }
+                }}, 4000);
+            }}
         </script>
     </body>
     </html>
     """
     
-    # Restituisce il valore dalla localStorage
-    stored_key = components.html(html_code, height=250)
-    return stored_key
+    return components.html(html_code, height=220)
+
+# ==========================================================
+# 🔑 CARICA CHIAVE DA LOCALSTORAGE (SOLO AL PRIMO AVVIO)
+# ==========================================================
+
+if not st.session_state.key_loaded_from_storage:
+    stored_key = load_from_localstorage()
+    if stored_key and isinstance(stored_key, str) and stored_key.startswith('sk-'):
+        st.session_state.api_key = stored_key
+        st.session_state.key_loaded_from_storage = True
+        st.rerun()
 
 # ==========================================================
 # 🔑 GESTIONE CHIAVE API
@@ -252,17 +257,19 @@ with st.expander("🔐 Configurazione API OpenAI", expanded=not st.session_state
     Usa questa funzione solo su computer personali e mai su dispositivi condivisi.
     """)
     
-    # Componente per gestire localStorage
-    stored_key = local_storage_manager()
+    # Componente per gestire la chiave
+    action = api_key_input_component()
     
-    # Aggiorna la chiave se arriva dal localStorage
-    if stored_key:
-        if stored_key == "REMOVED":
-            st.session_state.api_key = ""
-            st.rerun()
-        elif isinstance(stored_key, str) and stored_key.strip() and stored_key.startswith('sk-'):
-            if st.session_state.api_key != stored_key:
-                st.session_state.api_key = stored_key
+    # Gestisci le azioni
+    if action:
+        if isinstance(action, str):
+            if action.startswith('SAVE:'):
+                new_key = action.replace('SAVE:', '')
+                if new_key and new_key.startswith('sk-'):
+                    st.session_state.api_key = new_key
+                    st.rerun()
+            elif action == 'REMOVE':
+                st.session_state.api_key = ""
                 st.rerun()
     
     # Mostra stato
