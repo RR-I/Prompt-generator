@@ -172,7 +172,7 @@ with st.form("prompt_form"):
     
     modello = st.selectbox(
         "🤖 Modello LLM da usare", 
-        ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+        ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4.1", "gpt-5"]
     )
     
     submit = st.form_submit_button("🚀 Genera Prompt", use_container_width=True)
@@ -184,7 +184,7 @@ if submit:
     if not settore or not servizi:
         st.warning("⚠️ Compila almeno i campi 'Settore' e 'Servizi' per generare i prompt.")
     else:
-        with st.spinner("🪄 Generazione in corso..."):
+        with st.spinner("Generazione in corso..."):
             df_prompts = genera_prompt(
                 settore, 
                 servizi, 
