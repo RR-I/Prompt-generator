@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_js_eval import streamlit_js_eval
+import streamlit.components.v1 as components
 from openai import OpenAI
 import pandas as pd
 import json, re
@@ -22,91 +22,247 @@ Puoi personalizzare settore, servizi, target, area geografica e tono comunicativ
 """)
 
 # ==========================================================
-# 🔑 INIZIALIZZAZIONE SESSION STATE
+# 🔐 COMPONENTE CUSTOM PER LOCALSTORAGE
 # ==========================================================
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ""
-if 'key_loaded' not in st.session_state:
-    st.session_state.key_loaded = False
+
+def local_storage_manager():
+    """Componente HTML/JS per gestire localStorage"""
+    
+    html_code = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            
+            body {
+                font-family: "Source Sans Pro", sans-serif;
+                padding: 1rem;
+            }
+            
+            .container {
+                background: white;
+                border-radius: 8px;
+                padding: 1.5rem;
+            }
+            
+            .input-group {
+                margin-bottom: 1rem;
+            }
+            
+            label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 500;
+                color: #262730;
+            }
+            
+            input[type="password"] {
+                width: 100%;
+                padding: 0.5rem;
+                border: 1px solid #d3d3d3;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+            
+            input[type="password"]:focus {
+                outline: none;
+                border-color: #ff4b4b;
+            }
+            
+            .button-group {
+                display: flex;
+                gap: 0.5rem;
+                margin-top: 1rem;
+            }
+            
+            button {
+                flex: 1;
+                padding: 0.5rem 1rem;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            
+            .btn-save {
+                background: #4CAF50;
+                color: white;
+            }
+            
+            .btn-save:hover {
+                background: #45a049;
+            }
+            
+            .btn-remove {
+                background: #f44336;
+                color: white;
+            }
+            
+            .btn-remove:hover {
+                background: #da190b;
+            }
+            
+            .status {
+                margin-top: 1rem;
+                padding: 0.75rem;
+                border-radius: 4px;
+                font-size: 14px;
+                display: none;
+            }
+            
+            .status.success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            
+            .status.error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            
+            .status.info {
+                background: #d1ecf1;
+                color: #0c5460;
+                border: 1px solid #bee5eb;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="input-group">
+                <label for="apiKeyInput">🔑 Chiave API OpenAI</label>
+                <input type="password" id="apiKeyInput" placeholder="sk-proj-...">
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-save" onclick="saveKey()">💾 Salva nel browser</button>
+                <button class="btn-remove" onclick="removeKey()">🗑️ Rimuovi</button>
+            </div>
+            
+            <div id="status" class="status"></div>
+        </div>
+        
+        <script>
+            // Carica la chiave al caricamento della pagina
+            window.addEventListener('load', function() {
+                loadKey();
+            });
+            
+            function loadKey() {
+                try {
+                    const savedKey = localStorage.getItem('openai_api_key');
+                    if (savedKey) {
+                        document.getElementById('apiKeyInput').value = savedKey;
+                        sendToStreamlit(savedKey);
+                        showStatus('✅ Chiave caricata dal browser', 'success');
+                    }
+                } catch (error) {
+                    console.error('Errore nel caricamento:', error);
+                }
+            }
+            
+            function saveKey() {
+                const keyInput = document.getElementById('apiKeyInput');
+                const key = keyInput.value.trim();
+                
+                if (!key) {
+                    showStatus('⚠️ Inserisci una chiave valida', 'error');
+                    return;
+                }
+                
+                if (!key.startsWith('sk-')) {
+                    showStatus('⚠️ La chiave deve iniziare con "sk-"', 'error');
+                    return;
+                }
+                
+                try {
+                    localStorage.setItem('openai_api_key', key);
+                    sendToStreamlit(key);
+                    showStatus('✅ Chiave salvata con successo nel browser!', 'success');
+                } catch (error) {
+                    showStatus('❌ Errore nel salvataggio: ' + error.message, 'error');
+                }
+            }
+            
+            function removeKey() {
+                try {
+                    localStorage.removeItem('openai_api_key');
+                    document.getElementById('apiKeyInput').value = '';
+                    sendToStreamlit('');
+                    showStatus('🗑️ Chiave rimossa dal browser', 'info');
+                } catch (error) {
+                    showStatus('❌ Errore nella rimozione: ' + error.message, 'error');
+                }
+            }
+            
+            function sendToStreamlit(value) {
+                window.parent.postMessage({
+                    type: 'streamlit:setComponentValue',
+                    value: value
+                }, '*');
+            }
+            
+            function showStatus(message, type) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = message;
+                statusDiv.className = 'status ' + type;
+                statusDiv.style.display = 'block';
+                
+                // Nascondi dopo 5 secondi
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            }
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Restituisce il valore dalla localStorage
+    return components.html(html_code, height=250)
 
 # ==========================================================
-# 🔐 GESTIONE CHIAVE API CON LOCALSTORAGE
+# 🔑 GESTIONE CHIAVE API
 # ==========================================================
+
+# Inizializza session state
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ""
+
 with st.expander("🔐 Configurazione API OpenAI", expanded=not st.session_state.api_key):
     
-    # Disclaimer sicurezza
     st.warning("""
     ⚠️ **Attenzione alla sicurezza**: 
     La chiave API verrà salvata nel browser locale in formato non criptato. 
     Usa questa funzione solo su computer personali e mai su dispositivi condivisi.
     """)
     
-    # Prova a caricare dal localStorage (solo al primo caricamento)
-    if not st.session_state.key_loaded:
-        try:
-            stored_key = streamlit_js_eval(
-                js_expressions="localStorage.getItem('openai_api_key')",
-                key='get_api_key'
-            )
-            if stored_key and stored_key != "null":
-                st.session_state.api_key = stored_key
-                st.session_state.key_loaded = True
-        except:
-            pass
+    # Componente per gestire localStorage
+    stored_key = local_storage_manager()
     
-    # Input per la chiave API
-    api_key_input = st.text_input(
-        "Inserisci la tua chiave API OpenAI:", 
-        value=st.session_state.api_key,
-        type="password",
-        help="La chiave verrà salvata nel tuo browser locale"
-    )
-    
-    # Pulsanti di gestione
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("💾 Salva nel browser", use_container_width=True):
-            if api_key_input:
-                st.session_state.api_key = api_key_input
-                st.session_state.key_loaded = True
-                # Salva nel localStorage
-                try:
-                    streamlit_js_eval(
-                        js_expressions=f"localStorage.setItem('openai_api_key', '{api_key_input}')",
-                        key=f'save_api_key_{hash(api_key_input)}'
-                    )
-                    st.success("✅ Chiave salvata nel browser!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Errore nel salvataggio: {e}")
-            else:
-                st.warning("Inserisci una chiave valida")
-    
-    with col2:
-        if st.button("🗑️ Rimuovi dal browser", use_container_width=True):
-            st.session_state.api_key = ""
-            st.session_state.key_loaded = False
-            try:
-                streamlit_js_eval(
-                    js_expressions="localStorage.removeItem('openai_api_key')",
-                    key='remove_api_key'
-                )
-                st.info("Chiave rimossa dal browser")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Errore nella rimozione: {e}")
+    # Aggiorna la chiave se arriva dal localStorage
+    if stored_key and stored_key.strip():
+        st.session_state.api_key = stored_key
     
     # Mostra stato
     if st.session_state.api_key:
-        st.info(f"✅ Chiave API configurata: {st.session_state.api_key[:10]}...")
+        st.success(f"✅ Chiave API configurata: {st.session_state.api_key[:12]}...")
 
 # Recupera la chiave API
 api_key = st.session_state.api_key
 
 # Blocca l'app se non c'è la chiave
 if not api_key:
-    st.warning("⚠️ Per continuare, inserisci e salva una chiave API OpenAI valida.")
+    st.info("👆 Inserisci e salva la chiave API OpenAI nell'expander sopra per continuare.")
     st.stop()
 
 # Inizializza il client OpenAI
@@ -114,6 +270,7 @@ try:
     client = OpenAI(api_key=api_key)
 except Exception as e:
     st.error(f"❌ Errore nella configurazione di OpenAI: {e}")
+    st.info("Verifica che la chiave API sia corretta e riprova.")
     st.stop()
 
 # ==========================================================
@@ -257,4 +414,4 @@ if submit:
 # 📊 FOOTER
 # ==========================================================
 st.divider()
-st.caption("🔒 La tua chiave API viene salvata solo nel browser locale e non viene mai trasmessa a terzi.")
+st.caption("🔒 La tua chiave API viene salvata solo nel browser locale (localStorage) e non viene mai trasmessa a terzi.")
