@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("🧠 Prompt Generator Universale per Aziende e Settori")
+st.title("🧠 Prompt Generator")
 st.text("by Cristiano Caggiula-Ranking Road Italia")
 st.markdown("""
 Genera **prompt intelligenti e realistici** per test di posizionamento nei motori LLM (come GPT-4o),
