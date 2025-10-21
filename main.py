@@ -99,7 +99,7 @@ with st.form("prompt_form"):
     target = st.text_input("🎯 Target di riferimento (opzionale)", placeholder="es. aziende, privati, enti pubblici...")
     tono = st.text_input("💬 Tono e linguaggio desiderato (opzionale)", placeholder="es. professionale, amichevole, tecnico, persuasivo...")
     numero_prompt = st.slider("📈 Numero di prompt da generare", 10, 200, 50, step=10)
-    modello = st.selectbox("🤖 Modello LLM da usare", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"])
+    modello = st.selectbox("🤖 Modello LLM da usare", ["gpt-4.1","gpt-5","gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"])
     submit = st.form_submit_button("🚀 Genera Prompt")
 
 # ==========================================================
