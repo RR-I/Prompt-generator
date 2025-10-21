@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from openai import OpenAI
 import pandas as pd
 import json, re
@@ -13,8 +12,52 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("🧠 Prompt Generator")
-st.text("by Cristiano Caggiula-Ranking Road Italia")
+# ==========================================================
+# 🔐 SISTEMA DI AUTENTICAZIONE
+# ==========================================================
+
+# Inizializza session state
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+
+# Se non autenticato, mostra form di login
+if not st.session_state.authenticated:
+    st.title("🔐 Accesso Richiesto")
+    st.markdown("Inserisci la password per accedere all'applicazione.")
+    
+    with st.form("login_form"):
+        password_input = st.text_input("Password:", type="password")
+        login_button = st.form_submit_button("🔓 Accedi", use_container_width=True)
+        
+        if login_button:
+            try:
+                # Verifica la password dai secrets
+                correct_password = st.secrets["APP_PASSWORD"]
+                
+                if password_input == correct_password:
+                    st.session_state.authenticated = True
+                    st.success("✅ Accesso consentito!")
+                    st.rerun()
+                else:
+                    st.error("❌ Password errata. Riprova.")
+            except Exception as e:
+                st.error(f"❌ Errore nella configurazione dei secrets: {e}")
+                st.info("Assicurati di aver configurato APP_PASSWORD nei secrets.")
+    
+    st.stop()
+
+# ==========================================================
+# 📱 HEADER E LOGOUT
+# ==========================================================
+col1, col2 = st.columns([4, 1])
+with col1:
+    st.title("🧠 Prompt Generator")
+    st.text("by Cristiano Caggiula-Ranking Road Italia")
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.authenticated = False
+        st.rerun()
+
 st.markdown("""
 Genera **prompt intelligenti e realistici** per test di posizionamento nei motori LLM (come GPT-4o),
 adatti a **qualsiasi azienda o settore**.  
@@ -22,274 +65,15 @@ Puoi personalizzare settore, servizi, target, area geografica e tono comunicativ
 """)
 
 # ==========================================================
-# 🔐 INIZIALIZZAZIONE SESSION STATE
-# ==========================================================
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ""
-if 'key_loaded_from_storage' not in st.session_state:
-    st.session_state.key_loaded_from_storage = False
-
-# ==========================================================
-# 🔐 COMPONENTE PER CARICARE DA LOCALSTORAGE
+# 🔑 CONFIGURAZIONE OPENAI
 # ==========================================================
 
-def load_from_localstorage():
-    """Carica la chiave dal localStorage solo una volta"""
-    
-    html_code = """
-    <script>
-        const savedKey = localStorage.getItem('openai_api_key');
-        if (savedKey) {
-            window.parent.postMessage({
-                type: 'streamlit:setComponentValue',
-                value: savedKey
-            }, '*');
-        }
-    </script>
-    """
-    
-    return components.html(html_code, height=0)
-
-# ==========================================================
-# 🔐 COMPONENTE PER SALVARE/RIMUOVERE
-# ==========================================================
-
-def api_key_input_component():
-    """Componente per inserire e gestire la chiave API"""
-    
-    current_key = st.session_state.api_key
-    
-    html_code = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            * {{
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }}
-            
-            body {{
-                font-family: "Source Sans Pro", sans-serif;
-                padding: 0.5rem;
-            }}
-            
-            .input-group {{
-                margin-bottom: 1rem;
-            }}
-            
-            label {{
-                display: block;
-                margin-bottom: 0.5rem;
-                font-weight: 500;
-                color: #262730;
-                font-size: 14px;
-            }}
-            
-            input[type="password"] {{
-                width: 100%;
-                padding: 0.5rem;
-                border: 1px solid #d3d3d3;
-                border-radius: 4px;
-                font-size: 14px;
-            }}
-            
-            input[type="password"]:focus {{
-                outline: none;
-                border-color: #ff4b4b;
-            }}
-            
-            .button-group {{
-                display: flex;
-                gap: 0.5rem;
-                margin-top: 1rem;
-            }}
-            
-            button {{
-                flex: 1;
-                padding: 0.5rem 1rem;
-                border: none;
-                border-radius: 4px;
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.2s;
-            }}
-            
-            .btn-save {{
-                background: #4CAF50;
-                color: white;
-            }}
-            
-            .btn-save:hover {{
-                background: #45a049;
-            }}
-            
-            .btn-remove {{
-                background: #f44336;
-                color: white;
-            }}
-            
-            .btn-remove:hover {{
-                background: #da190b;
-            }}
-            
-            .status {{
-                margin-top: 1rem;
-                padding: 0.75rem;
-                border-radius: 4px;
-                font-size: 14px;
-                display: none;
-            }}
-            
-            .status.success {{
-                background: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-            }}
-            
-            .status.error {{
-                background: #f8d7da;
-                color: #721c24;
-                border: 1px solid #f5c6cb;
-            }}
-            
-            .status.info {{
-                background: #d1ecf1;
-                color: #0c5460;
-                border: 1px solid #bee5eb;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="input-group">
-            <label for="apiKeyInput">🔑 Chiave API OpenAI</label>
-            <input type="password" id="apiKeyInput" placeholder="sk-proj-..." value="{current_key}">
-        </div>
-        
-        <div class="button-group">
-            <button class="btn-save" onclick="saveKey()">💾 Salva nel browser</button>
-            <button class="btn-remove" onclick="removeKey()">🗑️ Rimuovi</button>
-        </div>
-        
-        <div id="status" class="status"></div>
-        
-        <script>
-            function saveKey() {{
-                const keyInput = document.getElementById('apiKeyInput');
-                const key = keyInput.value.trim();
-                
-                if (!key) {{
-                    showStatus('⚠️ Inserisci una chiave valida', 'error');
-                    return;
-                }}
-                
-                if (!key.startsWith('sk-')) {{
-                    showStatus('⚠️ La chiave deve iniziare con "sk-"', 'error');
-                    return;
-                }}
-                
-                try {{
-                    localStorage.setItem('openai_api_key', key);
-                    sendToStreamlit('SAVE:' + key);
-                    showStatus('✅ Chiave salvata con successo!', 'success');
-                }} catch (error) {{
-                    showStatus('❌ Errore: ' + error.message, 'error');
-                }}
-            }}
-            
-            function removeKey() {{
-                try {{
-                    localStorage.removeItem('openai_api_key');
-                    document.getElementById('apiKeyInput').value = '';
-                    sendToStreamlit('REMOVE');
-                    showStatus('🗑️ Chiave rimossa', 'info');
-                }} catch (error) {{
-                    showStatus('❌ Errore: ' + error.message, 'error');
-                }}
-            }}
-            
-            function sendToStreamlit(value) {{
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue',
-                    value: value
-                }}, '*');
-            }}
-            
-            function showStatus(message, type) {{
-                const statusDiv = document.getElementById('status');
-                statusDiv.textContent = message;
-                statusDiv.className = 'status ' + type;
-                statusDiv.style.display = 'block';
-                
-                setTimeout(() => {{
-                    statusDiv.style.display = 'none';
-                }}, 4000);
-            }}
-        </script>
-    </body>
-    </html>
-    """
-    
-    return components.html(html_code, height=220)
-
-# ==========================================================
-# 🔑 CARICA CHIAVE DA LOCALSTORAGE (SOLO AL PRIMO AVVIO)
-# ==========================================================
-
-if not st.session_state.key_loaded_from_storage:
-    stored_key = load_from_localstorage()
-    if stored_key and isinstance(stored_key, str) and stored_key.startswith('sk-'):
-        st.session_state.api_key = stored_key
-        st.session_state.key_loaded_from_storage = True
-        st.rerun()
-
-# ==========================================================
-# 🔑 GESTIONE CHIAVE API
-# ==========================================================
-
-with st.expander("🔐 Configurazione API OpenAI", expanded=not st.session_state.api_key):
-    
-    st.warning("""
-    ⚠️ **Attenzione alla sicurezza**: 
-    La chiave API verrà salvata nel browser locale in formato non criptato. 
-    Usa questa funzione solo su computer personali e mai su dispositivi condivisi.
-    """)
-    
-    # Componente per gestire la chiave
-    action = api_key_input_component()
-    
-    # Gestisci le azioni
-    if action:
-        if isinstance(action, str):
-            if action.startswith('SAVE:'):
-                new_key = action.replace('SAVE:', '')
-                if new_key and new_key.startswith('sk-'):
-                    st.session_state.api_key = new_key
-                    st.rerun()
-            elif action == 'REMOVE':
-                st.session_state.api_key = ""
-                st.rerun()
-    
-    # Mostra stato
-    if st.session_state.api_key:
-        st.success(f"✅ Chiave API configurata: {st.session_state.api_key[:12]}...")
-
-# Recupera la chiave API
-api_key = st.session_state.api_key
-
-# Blocca l'app se non c'è la chiave
-if not api_key:
-    st.info("👆 Inserisci e salva la chiave API OpenAI nell'expander sopra per continuare.")
-    st.stop()
-
-# Inizializza il client OpenAI
 try:
+    api_key = st.secrets["OPENAI_API_KEY"]
     client = OpenAI(api_key=api_key)
 except Exception as e:
     st.error(f"❌ Errore nella configurazione di OpenAI: {e}")
-    st.info("Verifica che la chiave API sia corretta e riprova.")
+    st.info("Assicurati di aver configurato OPENAI_API_KEY nei secrets.")
     st.stop()
 
 # ==========================================================
@@ -433,4 +217,4 @@ if submit:
 # 📊 FOOTER
 # ==========================================================
 st.divider()
-st.caption("🔒 La tua chiave API viene salvata solo nel browser locale (localStorage) e non viene mai trasmessa a terzi.")
+st.caption("🔒 Applicazione protetta da password. La chiave API è configurata in modo sicuro nei secrets.")
