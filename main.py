@@ -22,6 +22,12 @@ Puoi personalizzare settore, servizi, target, area geografica e tono comunicativ
 """)
 
 # ==========================================================
+# 🔐 INIZIALIZZAZIONE SESSION STATE
+# ==========================================================
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ""
+
+# ==========================================================
 # 🔐 COMPONENTE CUSTOM PER LOCALSTORAGE
 # ==========================================================
 
@@ -164,9 +170,12 @@ def local_storage_manager():
                         document.getElementById('apiKeyInput').value = savedKey;
                         sendToStreamlit(savedKey);
                         showStatus('✅ Chiave caricata dal browser', 'success');
+                    } else {
+                        sendToStreamlit('');
                     }
                 } catch (error) {
                     console.error('Errore nel caricamento:', error);
+                    sendToStreamlit('');
                 }
             }
             
@@ -197,7 +206,7 @@ def local_storage_manager():
                 try {
                     localStorage.removeItem('openai_api_key');
                     document.getElementById('apiKeyInput').value = '';
-                    sendToStreamlit('');
+                    sendToStreamlit('REMOVED');
                     showStatus('🗑️ Chiave rimossa dal browser', 'info');
                 } catch (error) {
                     showStatus('❌ Errore nella rimozione: ' + error.message, 'error');
@@ -228,15 +237,12 @@ def local_storage_manager():
     """
     
     # Restituisce il valore dalla localStorage
-    return components.html(html_code, height=250)
+    stored_key = components.html(html_code, height=250)
+    return stored_key
 
 # ==========================================================
 # 🔑 GESTIONE CHIAVE API
 # ==========================================================
-
-# Inizializza session state
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ""
 
 with st.expander("🔐 Configurazione API OpenAI", expanded=not st.session_state.api_key):
     
@@ -250,8 +256,14 @@ with st.expander("🔐 Configurazione API OpenAI", expanded=not st.session_state
     stored_key = local_storage_manager()
     
     # Aggiorna la chiave se arriva dal localStorage
-    if stored_key and stored_key.strip():
-        st.session_state.api_key = stored_key
+    if stored_key:
+        if stored_key == "REMOVED":
+            st.session_state.api_key = ""
+            st.rerun()
+        elif isinstance(stored_key, str) and stored_key.strip() and stored_key.startswith('sk-'):
+            if st.session_state.api_key != stored_key:
+                st.session_state.api_key = stored_key
+                st.rerun()
     
     # Mostra stato
     if st.session_state.api_key:
