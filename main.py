@@ -81,7 +81,7 @@ except Exception as e:
 # ==========================================================
 def genera_prompt(settore, servizi, numero_prompt=20, area=None, target=None, tono=None, modello="gpt-4o"):
     """
-    Genera prompt test per analisi semantiche LLM. Adatta il linguaggio in base al settore e ai parametri forniti.
+    Genera prompt test per analisi semantiche LLM con numero esatto garantito.
     """
     system_msg = """
     Genera un elenco di query sintetiche (prompt) per testare il posizionamento di un'azienda nel suo settore tramite LLM.
@@ -99,41 +99,71 @@ def genera_prompt(settore, servizi, numero_prompt=20, area=None, target=None, to
     - Avere linguaggio naturale, realistico e coerente con il tono indicato
     - Essere pertinente all'area geografica o target, se specificati
     - Coprire vari intenti: informazionali, valutativi e transazionali
+    
+    IMPORTANTE: Genera ESATTAMENTE il numero di prompt richiesto.
     Restituisci il risultato in formato JSON con chiavi: "categoria" e "testo".
     """
 
-    user_msg = f"""
-    Settore: {settore}
-    Servizi: {servizi}
-    Numero totale di prompt: {numero_prompt}
-    Area geografica: {area or "Nessuna specifica"}
-    Target: {target or "Generico"}
-    Tono linguistico: {tono or "Neutro e naturale"}
-    """
+    all_prompts = []
+    tentativi = 0
+    max_tentativi = 3
+    
+    while len(all_prompts) < numero_prompt and tentativi < max_tentativi:
+        mancanti = numero_prompt - len(all_prompts)
+        
+        user_msg = f"""
+        Settore: {settore}
+        Servizi: {servizi}
+        Numero ESATTO di prompt da generare: {mancanti}
+        Area geografica: {area or "Nessuna specifica"}
+        Target: {target or "Generico"}
+        Tono linguistico: {tono or "Neutro e naturale"}
+        
+        ATTENZIONE: Devi generare ESATTAMENTE {mancanti} prompt, né più né meno.
+        """
 
-    try:
-        response = client.chat.completions.create(
-            model=modello,
-            temperature=0.9,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_msg}
-            ]
-        )
-        text_output = response.choices[0].message.content
+        try:
+            response = client.chat.completions.create(
+                model=modello,
+                temperature=0.9,
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ]
+            )
+            text_output = response.choices[0].message.content
 
-        # Parsing del JSON dall'output
-        json_match = re.search(r"\[.*\]", text_output, re.S)
-        if not json_match:
-            raise ValueError("Output non in formato JSON")
+            # Parsing del JSON dall'output
+            json_match = re.search(r"\[.*\]", text_output, re.S)
+            if not json_match:
+                raise ValueError("Output non in formato JSON")
 
-        prompts = json.loads(json_match.group(0))
-        return pd.DataFrame(prompts)
+            prompts_batch = json.loads(json_match.group(0))
+            all_prompts.extend(prompts_batch)
+            
+            # Rimuovi duplicati mantenendo l'ordine
+            seen = set()
+            unique_prompts = []
+            for p in all_prompts:
+                prompt_text = p.get('testo', '')
+                if prompt_text not in seen:
+                    seen.add(prompt_text)
+                    unique_prompts.append(p)
+            all_prompts = unique_prompts
+            
+            tentativi += 1
 
-    except Exception as e:
-        st.error(f"❌ Errore nella generazione o parsing del risultato: {e}")
-        return None
-
+        except Exception as e:
+            st.error(f"❌ Errore nella generazione (tentativo {tentativi + 1}): {e}")
+            tentativi += 1
+    
+    # Taglia al numero esatto se hai generato troppi
+    all_prompts = all_prompts[:numero_prompt]
+    
+    if len(all_prompts) < numero_prompt:
+        st.warning(f"⚠️ Generati {len(all_prompts)} prompt su {numero_prompt} richiesti.")
+    
+    return pd.DataFrame(all_prompts) if all_prompts else None
 # ==========================================================
 # 🧩 FORM DI INPUT
 # ==========================================================
