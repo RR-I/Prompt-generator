@@ -283,45 +283,46 @@ Rispondi SOLO con l'array JSON, nient'altro.
 # ==========================================================
 # 🧩 FORM DI INPUT
 # ==========================================================
-with st.form("prompt_form"):
-    st.subheader("📋 Parametri di generazione")
-    
-    settore = st.text_input(
-        "🏭 Settore aziendale", 
-        placeholder="es. edilizia sostenibile, ristorazione, software SaaS..."
-    )
-    
-    servizi = st.text_input(
-        "🧰 Servizi o prodotti offerti", 
-        placeholder="es. progettazione, assistenza, consulenza, formazione..."
-    )
-    
-    area = st.text_input(
-        "📍 Area geografica (opzionale)", 
-        placeholder="es. Italia, Europa, Milano, Roma..."
-    )
-    
-    target = st.text_input(
-        "🎯 Target di riferimento (opzionale)", 
-        placeholder="es. aziende, privati, enti pubblici..."
-    )
-    
-    tono = st.text_input(
-        "💬 Tono e linguaggio desiderato (opzionale)", 
-        placeholder="es. professionale, amichevole, tecnico, persuasivo..."
-    )
-    
-    numero_prompt = st.slider(
-        "📈 Numero di prompt da generare", 
-        10, 200, 50, step=10
-    )
-    
-    modello = st.selectbox(
-        "🤖 Modello LLM da usare", 
-        ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
-    )
-    
-    submit = st.form_submit_button("🚀 Genera Prompt", use_container_width=True)
+with st.sidebar()
+    with st.form("prompt_form"):
+        st.subheader("📋 Parametri di generazione")
+        
+        settore = st.text_input(
+            "🏭 Settore aziendale", 
+            placeholder="es. edilizia sostenibile, ristorazione, software SaaS..."
+        )
+        
+        servizi = st.text_input(
+            "🧰 Servizi o prodotti offerti", 
+            placeholder="es. progettazione, assistenza, consulenza, formazione..."
+        )
+        
+        area = st.text_input(
+            "📍 Area geografica (opzionale)", 
+            placeholder="es. Italia, Europa, Milano, Roma..."
+        )
+        
+        target = st.text_input(
+            "🎯 Target di riferimento (opzionale)", 
+            placeholder="es. aziende, privati, enti pubblici..."
+        )
+        
+        tono = st.text_input(
+            "💬 Tono e linguaggio desiderato (opzionale)", 
+            placeholder="es. professionale, amichevole, tecnico, persuasivo..."
+        )
+        
+        numero_prompt = st.slider(
+            "📈 Numero di prompt da generare", 
+            10, 200, 50, step=10
+        )
+        
+        modello = st.selectbox(
+            "🤖 Modello LLM da usare", 
+            ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+        )
+        
+        submit = st.form_submit_button("🚀 Genera Prompt", use_container_width=True)
 
 # ==========================================================
 # ⚙️ GENERAZIONE E RISULTATI
