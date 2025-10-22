@@ -165,7 +165,7 @@ Formato di output richiesto:
 Rispondi SOLO con l'array JSON, nient'altro.
 """
 
-        status_text.text(f"🔄 Batch {i+1}/{num_batches} | Generati: {len(all_prompts)}/{numero_prompt} prompt")
+        status_text.text(f"๋࣭ ⭑⚝ Batch {i+1}/{num_batches} | Generati: {len(all_prompts)}/{numero_prompt} prompt")
         
         max_retry = 3
         batch_success = False
@@ -348,36 +348,274 @@ if submit:
         if df_prompts is not None and not df_prompts.empty:
             st.success(f"✅ Processo completato in {elapsed_time:.1f} secondi")
             
-            # Statistiche
-            col1, col2, col3 = st.columns(3)
+            # ==========================================================
+            # 📊 STATISTICHE E METRICHE
+            # ==========================================================
+            st.subheader("📊 Statistiche Generazione")
+            
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Prompt Generati", len(df_prompts))
+                st.metric("🎯 Prompt Generati", len(df_prompts), delta=f"{len(df_prompts)/numero_prompt*100:.0f}%")
             with col2:
-                st.metric("Categorie Uniche", df_prompts['categoria'].nunique())
+                st.metric("📁 Categorie", df_prompts['categoria'].nunique())
             with col3:
-                st.metric("Tempo", f"{elapsed_time:.1f}s")
+                st.metric("⏱️ Tempo", f"{elapsed_time:.1f}s")
+            with col4:
+                media_lunghezza = df_prompts['testo'].str.len().mean()
+                st.metric("📏 Lunghezza Media", f"{media_lunghezza:.0f} char")
             
-            # Distribuzione per categoria
-            st.subheader("📊 Distribuzione per categoria")
-            categoria_counts = df_prompts['categoria'].value_counts()
-            st.bar_chart(categoria_counts)
+            # ==========================================================
+            # 📈 GRAFICI INTERATTIVI
+            # ==========================================================
+            st.subheader("📈 Analisi Visuale")
             
-            # Mostra tabella
-            st.subheader("📋 Prompt generati")
-            st.dataframe(df_prompts, use_container_width=True, height=400)
-
-            # Download CSV
-            csv = df_prompts.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="💾 Scarica i prompt in CSV",
-                data=csv,
-                file_name=f"prompt_{settore.replace(' ', '_')}_{numero_prompt}.csv",
-                mime="text/csv",
-                use_container_width=True
+            # Calcola statistiche per categoria
+            categoria_stats = df_prompts.groupby('categoria').agg({
+                'testo': ['count', lambda x: x.str.len().mean()]
+            }).round(0)
+            categoria_stats.columns = ['count', 'avg_length']
+            categoria_stats = categoria_stats.reset_index()
+            categoria_stats = categoria_stats.sort_values('count', ascending=True)
+            
+            # TAB per organizzare i grafici
+            tab1, tab2, tab3 = st.tabs(["📊 Distribuzione", "📏 Lunghezza Prompt", "🔤 Word Cloud"])
+            
+            with tab1:
+                # Grafico a barre orizzontali (più leggibile)
+                import plotly.express as px
+                
+                fig_bar = px.bar(
+                    categoria_stats,
+                    y='categoria',
+                    x='count',
+                    orientation='h',
+                    title='Distribuzione Prompt per Categoria',
+                    labels={'count': 'Numero di Prompt', 'categoria': 'Categoria'},
+                    color='count',
+                    color_continuous_scale='Blues',
+                    text='count'
+                )
+                fig_bar.update_traces(textposition='outside')
+                fig_bar.update_layout(
+                    showlegend=False,
+                    height=400,
+                    xaxis_title="Numero di Prompt",
+                    yaxis_title="",
+                    font=dict(size=12)
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+                
+                # Grafico a torta
+                fig_pie = px.pie(
+                    categoria_stats,
+                    values='count',
+                    names='categoria',
+                    title='Percentuale per Categoria',
+                    hole=0.4,  # Donut chart
+                    color_discrete_sequence=px.colors.sequential.RdBu
+                )
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+                fig_pie.update_layout(height=400)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with tab2:
+                # Box plot per lunghezza prompt
+                df_prompts['lunghezza'] = df_prompts['testo'].str.len()
+                
+                fig_box = px.box(
+                    df_prompts,
+                    x='categoria',
+                    y='lunghezza',
+                    title='Distribuzione Lunghezza Prompt per Categoria',
+                    labels={'lunghezza': 'Lunghezza (caratteri)', 'categoria': 'Categoria'},
+                    color='categoria',
+                    color_discrete_sequence=px.colors.qualitative.Set3
+                )
+                fig_box.update_layout(
+                    showlegend=False,
+                    height=400,
+                    xaxis_title="",
+                    xaxis_tickangle=-45
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+                
+                # Istogramma generale
+                fig_hist = px.histogram(
+                    df_prompts,
+                    x='lunghezza',
+                    nbins=30,
+                    title='Distribuzione Generale Lunghezza Prompt',
+                    labels={'lunghezza': 'Lunghezza (caratteri)', 'count': 'Frequenza'},
+                    color_discrete_sequence=['#636EFA']
+                )
+                fig_hist.update_layout(
+                    showlegend=False,
+                    height=350,
+                    yaxis_title="Numero di Prompt"
+                )
+                st.plotly_chart(fig_hist, use_container_width=True)
+                
+                # Statistiche descrittive
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("📏 Minima", f"{df_prompts['lunghezza'].min()} char")
+                with col2:
+                    st.metric("📏 Media", f"{df_prompts['lunghezza'].mean():.0f} char")
+                with col3:
+                    st.metric("📏 Massima", f"{df_prompts['lunghezza'].max()} char")
+            
+            with tab3:
+                try:
+                    from wordcloud import WordCloud
+                    import matplotlib.pyplot as plt
+                    
+                    # Genera word cloud
+                    text = ' '.join(df_prompts['testo'])
+                    
+                    # Rimuovi stop words comuni italiane
+                    stopwords_ita = set([
+                        'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'a', 'da', 
+                        'in', 'con', 'su', 'per', 'tra', 'fra', 'come', 'del', 'della', 'dei', 
+                        'delle', 'al', 'alla', 'ai', 'alle', 'dal', 'dalla', 'dai', 'dalle', 
+                        'nel', 'nella', 'nei', 'nelle', 'sul', 'sulla', 'sui', 'sulle', 'e', 
+                        'o', 'ma', 'se', 'che', 'chi', 'cui', 'quale', 'quanto', 'quando', 'dove',
+                        'sono', 'è', 'ho', 'hai', 'ha', 'abbiamo', 'avete', 'hanno', 'essere', 'avere'
+                    ])
+                    
+                    wordcloud = WordCloud(
+                        width=1600,
+                        height=800,
+                        background_color='white',
+                        colormap='viridis',
+                        stopwords=stopwords_ita,
+                        collocations=False,
+                        relative_scaling=0.5,
+                        min_font_size=10
+                    ).generate(text)
+                    
+                    fig_wc, ax = plt.subplots(figsize=(16, 8))
+                    ax.imshow(wordcloud, interpolation='bilinear')
+                    ax.axis('off')
+                    ax.set_title('Word Cloud dei Prompt Generati', fontsize=20, pad=20)
+                    st.pyplot(fig_wc)
+                    
+                    # Top 10 parole più frequenti
+                    st.subheader("🔝 Top 10 Parole più Frequenti")
+                    word_freq = wordcloud.words_
+                    top_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:10]
+                    
+                    df_words = pd.DataFrame(top_words, columns=['Parola', 'Frequenza'])
+                    
+                    fig_top = px.bar(
+                        df_words,
+                        x='Frequenza',
+                        y='Parola',
+                        orientation='h',
+                        title='',
+                        color='Frequenza',
+                        color_continuous_scale='Viridis'
+                    )
+                    fig_top.update_layout(
+                        showlegend=False,
+                        height=400,
+                        yaxis={'categoryorder': 'total ascending'}
+                    )
+                    st.plotly_chart(fig_top, use_container_width=True)
+                    
+                except ImportError:
+                    st.info("💡 Per visualizzare il Word Cloud, installa la libreria: `pip install wordcloud matplotlib`")
+                    
+                    # Alternativa semplice: conteggio parole
+                    st.subheader("🔤 Analisi Parole Chiave")
+                    all_words = ' '.join(df_prompts['testo']).lower().split()
+                    word_counts = pd.Series(all_words).value_counts().head(20)
+                    
+                    fig_words = px.bar(
+                        x=word_counts.values,
+                        y=word_counts.index,
+                        orientation='h',
+                        title='Top 20 Parole più Frequenti',
+                        labels={'x': 'Frequenza', 'y': 'Parola'}
+                    )
+                    fig_words.update_layout(height=500, yaxis={'categoryorder': 'total ascending'})
+                    st.plotly_chart(fig_words, use_container_width=True)
+            
+            # ==========================================================
+            # 📋 TABELLA DATI
+            # ==========================================================
+            st.subheader("📋 Prompt Generati")
+            
+            # Aggiungi filtro per categoria
+            col_filter1, col_filter2 = st.columns(2)
+            with col_filter1:
+                categorie_selezionate = st.multiselect(
+                    "Filtra per categoria:",
+                    options=df_prompts['categoria'].unique(),
+                    default=df_prompts['categoria'].unique()
+                )
+            with col_filter2:
+                min_length = st.slider(
+                    "Lunghezza minima caratteri:",
+                    0, int(df_prompts['lunghezza'].max()),
+                    0
+                )
+            
+            # Applica filtri
+            df_filtered = df_prompts[
+                (df_prompts['categoria'].isin(categorie_selezionate)) & 
+                (df_prompts['lunghezza'] >= min_length)
+            ]
+            
+            st.info(f"📊 Visualizzati {len(df_filtered)} di {len(df_prompts)} prompt")
+            
+            # Mostra tabella con lunghezza
+            df_display = df_filtered[['categoria', 'testo', 'lunghezza']].copy()
+            st.dataframe(
+                df_display,
+                use_container_width=True,
+                height=400,
+                column_config={
+                    "categoria": st.column_config.TextColumn("Categoria", width="medium"),
+                    "testo": st.column_config.TextColumn("Prompt", width="large"),
+                    "lunghezza": st.column_config.NumberColumn("Caratteri", width="small")
+                }
             )
+
+            # ==========================================================
+            # 💾 DOWNLOAD
+            # ==========================================================
+            st.subheader("💾 Download Risultati")
+            
+            col_dl1, col_dl2 = st.columns(2)
+            
+            with col_dl1:
+                # CSV completo
+                csv = df_prompts.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="📥 Scarica CSV Completo",
+                    data=csv,
+                    file_name=f"prompt_{settore.replace(' ', '_')}_{numero_prompt}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            
+            with col_dl2:
+                # Excel con formattazione
+                from io import BytesIO
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df_prompts.to_excel(writer, index=False, sheet_name='Prompt')
+                    categoria_stats.to_excel(writer, index=False, sheet_name='Statistiche')
+                
+                st.download_button(
+                    label="📊 Scarica Excel con Statistiche",
+                    data=output.getvalue(),
+                    file_name=f"prompt_{settore.replace(' ', '_')}_{numero_prompt}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
         else:
             st.error("❌ Nessun prompt generato. Prova a riformulare i parametri o riduci il numero richiesto.")
-
 # ==========================================================
 # 📊 FOOTER
 # ==========================================================
