@@ -222,35 +222,37 @@ Rispondi SOLO con l'array JSON, nient'altro.
                 
                 all_prompts.extend(nuovi_prompts)
                 
-                # Feedback visivo
+                # Feedback visivo (aggiorna nello stesso container)
                 if len(nuovi_prompts) == prompts_da_generare:
-                    st.success(f"✅ Batch {i+1}: generati {len(nuovi_prompts)}/{prompts_da_generare} prompt")
+                    status_text.success(f"✅ Batch {i+1}/{num_batches}: generati {len(nuovi_prompts)}/{prompts_da_generare} prompt | Totale: {len(all_prompts)}/{numero_prompt}")
                 elif len(nuovi_prompts) > 0:
-                    st.info(f"ℹ️ Batch {i+1}: generati {len(nuovi_prompts)}/{prompts_da_generare} prompt (alcuni erano duplicati)")
+                    status_text.info(f"ℹ️ Batch {i+1}/{num_batches}: generati {len(nuovi_prompts)}/{prompts_da_generare} prompt (alcuni duplicati) | Totale: {len(all_prompts)}/{numero_prompt}")
                 else:
-                    st.warning(f"⚠️ Batch {i+1}: tutti i prompt erano duplicati, riprovo...")
+                    status_text.warning(f"⚠️ Batch {i+1}/{num_batches}: tutti duplicati, riprovo...")
                     continue
                 
                 batch_success = True
                 break  # Successo, esci dal retry loop
                 
+          
             except json.JSONDecodeError as e:
                 if tentativo < max_retry - 1:
-                    st.warning(f"⚠️ Errore parsing JSON batch {i+1} (tentativo {tentativo+1}/{max_retry}), riprovo...")
-                    time.sleep(1)  # Piccola pausa prima di riprovare
+                    status_text.warning(f"⚠️ Batch {i+1} - Errore JSON (tentativo {tentativo+1}/{max_retry}), riprovo...")
+                    time.sleep(1)
                 else:
-                    st.error(f"❌ Batch {i+1} fallito dopo {max_retry} tentativi (errore JSON)")
+                    status_text.error(f"❌ Batch {i+1} fallito dopo {max_retry} tentativi")
                     
             except Exception as e:
                 if tentativo < max_retry - 1:
-                    st.warning(f"⚠️ Errore batch {i+1} (tentativo {tentativo+1}/{max_retry}): {str(e)[:150]}")
+                    status_text.warning(f"⚠️ Batch {i+1} - Tentativo {tentativo+1}/{max_retry}: {str(e)[:100]}")
                     time.sleep(1)
                 else:
-                    st.error(f"❌ Batch {i+1} fallito: {str(e)[:150]}")
+                    status_text.error(f"❌ Batch {i+1} fallito: {str(e)[:100]}")
         
         # Se il batch non è riuscito dopo tutti i retry, continua comunque
+
         if not batch_success:
-            st.warning(f"⚠️ Batch {i+1} saltato, continuo con i successivi...")
+            status_text.warning(f"⚠️ Batch {i+1} saltato, continuo...")
         
         progress_bar.progress(min((i + 1) / num_batches, 1.0))
         
