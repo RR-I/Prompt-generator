@@ -283,7 +283,7 @@ Rispondi SOLO con l'array JSON, nient'altro.
 # ==========================================================
 # 🧩 FORM DI INPUT
 # ==========================================================
-with st.sidebar()
+with st.sidebar():
     with st.form("prompt_form"):
         st.subheader("📋 Parametri di generazione")
         
