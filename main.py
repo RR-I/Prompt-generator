@@ -319,7 +319,7 @@ with st.sidebar:
         
         modello = st.selectbox(
             "🤖 Modello LLM da usare", 
-            ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+            ["gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo","gpt-4-turbo-preview", "gpt-4.1", "gpt-5.1-chat-latest"]
         )
         
         submit = st.form_submit_button("🚀 Genera Prompt", use_container_width=True)
