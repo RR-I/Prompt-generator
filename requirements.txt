@@ -2,4 +2,4 @@ openai
 pandas
 streamlit-js-eval
 plotly
-altair
+altair<5
