@@ -2,3 +2,4 @@ openai
 pandas
 streamlit-js-eval
 plotly
+altair
