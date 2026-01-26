@@ -402,6 +402,5 @@ if 'df_prompts' in st.session_state:
 # ==========================================================
 # 📊 FOOTER
 # ==========================================================
-st.divider()
 st.caption("🔒 Applicazione protetta da password. La chiave API è configurata in modo sicuro nei secrets.")
 st.caption("💡 Tip: I risultati rimangono visibili finché non generi nuovi prompt!")
