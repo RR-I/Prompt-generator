@@ -3,3 +3,4 @@ pandas
 streamlit-js-eval
 plotly
 altair<5
+standard-imghdr
