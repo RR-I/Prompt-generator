@@ -105,7 +105,7 @@ def accorpa_categoria(cat):
 # ==========================================================
 # 🧠 FUNZIONE DI GENERAZIONE PROMPT (VERSIONE ROBUSTA)
 # ==========================================================
-def genera_prompt(settore, servizi, numero_prompt=20, area=None, target=None, tono=None, modello="gpt-4o"):
+def genera_prompt(settore, servizi, numero_prompt=20, area=None, target=None, tono=None, modello="gpt-4.1"):
     """
     Genera prompt con batch ottimizzati e retry intelligente.
     (output = pd.DataFrame, con colonna 'categoria' già processata)
