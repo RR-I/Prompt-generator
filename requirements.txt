@@ -1,3 +1,4 @@
+streamlit>=1.29
 openai
 pandas
 streamlit-js-eval
